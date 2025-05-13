@@ -1,9 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const userService = require('./service/userService');
+const userRoutes = require('./router/userRoutes');
+const MongoStore = require('connect-mongo');
 const app = express();
 // const randomRouter = require('./router/random.js');
 const port = 8000;
+
+// 连接数据库
+userService.connectToDatabase().catch(console.error);
+
 app.use(express.urlencoded({ extended: true })); // 解析表单数据
 app.use(express.json()); // 解析JSON数据
 
@@ -13,63 +20,75 @@ app.use(session({
     saveUninitialized: false, // 是否保存未初始化的session，建议false
     cookie: {
         maxAge: 1000 * 60 * 30 // 设置session的有效时间，单位是毫秒
-    }
+    },
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGO_URL, // 数据库连接地址
+        dbName: process.env.DB_NAME, // 数据库名称
+        stringify: false, // 不将session数据序列化为字符串
+    })
 }));
+
+// API路由
+app.use('/api/users', userRoutes);
+
 app.get('/', (req, res, next) => {
-    console.log(req.session.user);
     if (req.session.user) {
         next(); // 继续执行下一个中间件
     } else {
         next('route'); // 跳过当前中间件，直接执行下一个路由
     }
 }, (req, res) => {
-    res.send(`Hello  ${req.session.user}! <a href="/logout">退出</a>`);
+    res.send(`Hello  ${req.session.user.username}! <a href="/api/users/logout">退出</a>`);
 })
 
 app.get('/', (req, res) => {
     res.send(`
-    <form action="/login" method="post">
-        <input type="text" name="username"><br><br>
-        <input type="password" name="password"><br><br>
-        <input type="submit" value="login">
-    </form>`);
+    <h1>用户登录</h1>
+    <form action="/api/users/login" method="post">
+        <div>
+            <label for="username">用户名:</label>
+            <input type="text" id="username" name="username">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="password">密码:</label>
+            <input type="password" id="password" name="password">
+        </div>
+        <div style="margin-top: 20px">
+            <input type="submit" value="登录">
+        </div>
+    </form>
+    <div style="margin-top: 20px;">
+        <a href="/register">注册新账号</a>
+    </div>
+    `);
 })
 
-app.get('/login', (req, res) => {
+app.get('/register', (req, res) => {
     res.send(`
-    <form action="/login" method="post">
-        <input type="text" name="username"><br><br>
-        <input type="password" name="password"><br><br>
-        <input type="submit" value="login">
-    </form>`);
+    <h1>用户注册</h1>
+    <form action="/api/users/register" method="post">
+        <div>
+            <label for="username">用户名:</label>
+            <input type="text" id="username" name="username">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="password">密码:&ensp;&ensp;</label>
+            <input type="password" id="password" name="password">
+        </div>
+        <div style="margin-top: 20px">
+            <input type="submit" value="注册">
+        </div>
+    </form>
+    <div style="margin-top: 20px;">
+        <a href="/">返回登录</a>
+    </div>
+    `);
 })
 
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    console.log(username, password);
-    if (username === process.env.MOCK_USER && password === process.env.MOCK_PASSWORD) {
-        req.session.regenerate((err) => {
-            if (err) return next(err);
-            req.session.user = username;
-            req.session.save((err) => {
-                if (err) return next(err);
-                res.redirect('/');
-            })
-        })
-    } else {
-        res.status(401).send('用户名或密码错误')
-    }
-})
-
-app.get('/logout', (req, res) => {
-    req.session.user = null;
-    req.session.save((err) => {
-        if (err) return next(err); // 处理错误
-        req.session.regenerate((err) => {
-            if (err) return next(err);
-            res.redirect('/')
-        })
-    })
+// 错误处理中间件
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('服务器错误!');
 })
 
 // app.use('/random/:extract', randomRouter);
