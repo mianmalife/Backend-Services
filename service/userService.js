@@ -57,7 +57,7 @@ async function updateLastLogin(userId) {
 // 根据用户ID获取用户信息，不包括密码
 async function getUserWithoutPassword(userId) {
     await connectToDatabase();
-    return usersCollection.findOne({ _id: userId }, { projection: { password: 0 } });
+    return usersCollection.findOne({ _id: new ObjectId(userId) }, { projection: { password: 0 } });
 }
 
 module.exports = {

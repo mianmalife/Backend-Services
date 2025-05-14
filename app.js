@@ -50,7 +50,7 @@ app.get('/', (req, res) => {
             <input type="text" id="username" name="username">
         </div>
         <div style="margin-top: 10px;">
-            <label for="password">密码:</label>
+            <label for="password">密码:&ensp;&ensp;</label>
             <input type="password" id="password" name="password">
         </div>
         <div style="margin-top: 20px">
