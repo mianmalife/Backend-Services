@@ -2,18 +2,27 @@ require('dotenv').config();
 const { MongoClient, ObjectId } = require('mongodb'); // 导入MongoDB驱动
 const bcrypt = require('bcrypt'); // 导入bcrypt模块
 
+let client;
 let db;
 let usersCollection;
 
 // 连接MongoDB数据库
 async function connectToDatabase() {
-    if (db) return db;
-    const client = new MongoClient(process.env.MONGO_URL); // 连接MongoDB数据库
+    if (db) return { client, db };
+    client = new MongoClient(process.env.MONGO_URL); // 连接MongoDB数据库
     await client.connect(); // 连接数据库
     db = client.db(process.env.DB_NAME); // 获取数据库实例
     usersCollection = db.collection('users'); // 获取集合实例
     await usersCollection.createIndex({ username: 1 }, { unique: true }); // 创建唯一索引
-    return db;
+    return { client, db };
+}
+
+// 获取MongoDB客户端
+async function getMongoClient() {
+    if (!client) {
+        await connectToDatabase();
+    }
+    return client;
 }
 
 // 创建新用户
@@ -27,7 +36,7 @@ async function createUser(userData) {
         salt: salt,
     };
     const result = await usersCollection.insertOne(newUser);
-    return { ...newUser, _id: result.insertedId, password: undefined }; // 返回新用户信息，不包括密码
+    return { username: newUser.username, _id: result.insertedId };
 }
 
 // 根据用户名查找用户
@@ -61,6 +70,7 @@ async function getUserWithoutPassword(userId) {
 }
 
 module.exports = {
+    getMongoClient,
     connectToDatabase,
     createUser,
     findUserByUsername,

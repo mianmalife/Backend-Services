@@ -35,7 +35,7 @@ exports.login = async (req, res, next) => {
         // 验证用户
         const user = await userService.findUserByUsername(username);
         if (!user) {
-            return res.status(401).json({ message: '用户名或密码错误' });
+            return res.status(404).json({ message: '用户不存在' });
         }
         const isMatch = await userService.verifyPassword(password, user.password);
         if (!isMatch) {
@@ -45,7 +45,7 @@ exports.login = async (req, res, next) => {
         // 登录成功后，创建session
         req.session.regenerate((err) => {
             if (err) return next(err);
-            req.session.user = user;
+            req.session.user = { username: user.username, _id: user._id };
             req.session.userId = user._id.toString();
 
             req.session.save((err) => {
