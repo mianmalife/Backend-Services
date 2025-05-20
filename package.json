@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node app.js"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "mianmalife",
+  "license": "MIT",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "connect-mongo": "^5.1.0",
