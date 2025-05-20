@@ -1,4 +1,5 @@
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 const { MongoClient, ObjectId } = require('mongodb'); // 导入MongoDB驱动
 const bcrypt = require('bcrypt'); // 导入bcrypt模块
 
@@ -56,7 +57,7 @@ async function verifyPassword(plainPassword, hashedPassword) {
     return bcrypt.compare(plainPassword, hashedPassword); // 比较密码是否匹配
 }
 
-async function updateLastLogin(userId) {
+async function updateLastLoginTime(userId) {
     await connectToDatabase();
     return usersCollection.updateOne(
         { _id: new ObjectId(userId) },
@@ -66,7 +67,12 @@ async function updateLastLogin(userId) {
 // 根据用户ID获取用户信息，不包括密码
 async function getUserWithoutPassword(userId) {
     await connectToDatabase();
-    return usersCollection.findOne({ _id: new ObjectId(userId) }, { projection: { password: 0 } });
+    return usersCollection.findOne({ _id: new ObjectId(userId) }, { projection: { password: 0, salt: 0 } });
+}
+
+// 生成JWT令牌
+async function generateToken(user) {
+    return jwt.sign({ id: user._id.toString(), username: user.username }, process.env.JWT_SECRET, { expiresIn: 30 })
 }
 
 module.exports = {
@@ -76,6 +82,7 @@ module.exports = {
     findUserByUsername,
     findUserById,
     verifyPassword,
-    updateLastLogin,
+    updateLastLoginTime,
     getUserWithoutPassword,
+    generateToken,
 }

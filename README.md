@@ -1,5 +1,9 @@
 # Express API Services
 
+## 🔨 技术栈
+
+**Server:** Node.js, Express, MongoDB, JWT
+
 ## 💼 API
 
 **用户注册**

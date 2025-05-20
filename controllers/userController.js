@@ -3,23 +3,18 @@ const userService = require('../service/userService.js');
 exports.register = async (req, res, next) => {
     try {
         const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({ message: '用户名和密码不能为空' });
+        }
         const existingUser = await userService.findUserByUsername(username);
         if (existingUser) {
             return res.status(400).json({ message: '用户名已存在' });
         }
         const user = await userService.createUser({ username, password });
 
-        // 注册成功后，创建session
-        req.session.regenerate((err) => {
-            if (err) return next(err);
-            req.session.user = user;
-            req.session.userId = user._id.toString();
+        const token = userService.generateToken(user);
 
-            req.session.save((err) => {
-                if (err) return next(err);
-                res.status(200).json({ message: '注册成功', username });
-            });
-        });
+        res.status(200).json({ message: '注册成功', username, token });
     } catch (error) {
         console.error('注册错误：', error);
         if (error.code === 11000) { // mongodb 唯一索引冲突
@@ -42,45 +37,25 @@ exports.login = async (req, res, next) => {
             return res.status(401).json({ message: '用户名或密码错误' });
         }
 
-        // 登录成功后，创建session
-        req.session.regenerate((err) => {
-            if (err) return next(err);
-            req.session.user = { username: user.username, _id: user._id };
-            req.session.userId = user._id.toString();
-
-            req.session.save((err) => {
-                if (err) return next(err);
-                res.status(200).json({ message: '登录成功', username });
-            })
-        })
+        // 更新最后登录时间
+        await userService.updateLastLoginTime(user._id);
+        // 生成token
+        const token = await userService.generateToken(user);
+        res.status(200).json({ message: '登录成功', username: user.username, token });
     } catch (error) {
         console.error('登录错误：', error);
         next(error);
     }
 }
 
-// 退出登录
+// 退出登录 jwt方式 不需要做任何处理 客户端只需要清除token即可
 exports.logout = (req, res, next) => {
-    req.session.user = null;
-    req.session.userId = null;
-
-    req.session.save((err) => {
-        if (err) return next(err);
-
-        req.session.regenerate((err) => {
-            if (err) return next(err);
-            res.status(200).json({ message: '退出成功' });
-        })
-    })
+    res.status(200).json({ message: '退出成功' });
 }
 
 exports.getCurrentUser = async (req, res) => {
-    if (!req.session.userId) {
-        return res.status(401).json({ message: '未登录' });
-    }
-
     try {
-        const user = await userService.getUserWithoutPassword(req.session.userId);
+        const user = await userService.getUserWithoutPassword(req.auth.id);
         if (!user) {
             return res.status(404).json({ message: '用户不存在' });
         }
